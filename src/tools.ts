@@ -2,6 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
 import { HiveBridge, HiveError } from "./bridge.js";
 import { readLastProjectRoot } from "./discovery.js";
+import { contentToBlocks, offlineContent, youtubeBlocksFor, youtubeIdsIn, youtubeToBlocks, type Block } from "./content.js";
+import { readYouTube } from "./youtube.js";
 import {
   loadOfflineProject,
   offlineGet,
@@ -14,7 +16,7 @@ import {
 } from "./offline.js";
 
 type ToolResult = {
-  content: { type: "text"; text: string }[];
+  content: Block[];
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
 };
@@ -371,4 +373,110 @@ export function registerTools(server: McpServer, bridge: HiveBridge): void {
     inputSchema: z.object({}),
     annotations: { ...additive, idempotentHint: true },
   }, async () => write("project.save", {}));
+
+  // ---------- content: pictures, files, PDFs, media, YouTube ----------
+
+  server.registerTool("read_node_content", {
+    title: "Read node content",
+    description:
+      "Read what is INSIDE nodes, not just their text: images and GIFs come back as real images you can look at (downscaled), " +
+      "inline pictures inside notes too; text/code/JSON/CSV files and project-copied sources come back as text; PDFs as page text; " +
+      "audio/video as duration, size and a poster frame; YouTube nodes and YouTube links inside notes are expanded with title, channel, description, thumbnail and transcript; " +
+      "lists, tierlists, goals, calendars and other modules as their data. Use this to study a project. Up to 10 nodes per call.",
+    inputSchema: z.object({
+      ids: z.array(NodeId).min(1).max(10),
+      maxImagePx: z.number().int().min(256).max(2048).optional().describe("Longest image side, default 1024. Lower it when reading many images."),
+      pdfPages: z.object({ from: z.number().int().min(1).optional(), to: z.number().int().min(1).optional() }).optional().describe("Default pages 1–30."),
+      youtube: z.enum(["full", "metadata", "none"]).optional().describe("full (default): title, description, thumbnail and transcript; metadata: without transcript."),
+    }),
+    annotations: { ...readOnly, openWorldHint: true },
+  }, async (input) => {
+    const blocks: Block[] = [];
+    const youtubeIds: string[] = [];
+    for (const id of input.ids) {
+      let content: Record<string, unknown>;
+      try {
+        content = await bridge.call<Record<string, unknown>>("nodes.content", clean({ id, maxImagePx: input.maxImagePx, pdfPages: input.pdfPages }));
+      } catch (error) {
+        if (error instanceof HiveError && error.code === "not_running") {
+          try {
+            content = await offlineContent(await offline(), id, 200_000);
+          } catch (offlineError) {
+            blocks.push({ type: "text", text: `Node ${id}: ${(offlineError as Error).message}` });
+            continue;
+          }
+        } else {
+          blocks.push(...fail(error).content.map((block) => ({ ...block, text: `Node ${id}: ${(block as { text: string }).text}` }) as Block));
+          continue;
+        }
+      }
+      blocks.push(...contentToBlocks(content, `Node "${String(content.name ?? id)}" (${String(content.type ?? "?")}, id ${id})`));
+      for (const videoId of youtubeIdsIn(content)) if (!youtubeIds.includes(videoId)) youtubeIds.push(videoId);
+    }
+    if (youtubeIds.length && input.youtube !== "none") blocks.push(...(await youtubeBlocksFor(youtubeIds, input.youtube !== "metadata")));
+    return { content: blocks };
+  });
+
+  server.registerTool("read_youtube", {
+    title: "Read a YouTube video",
+    description: "Any YouTube link or video id (watch, youtu.be, shorts, embed, live, music): title, channel, length, views, description, thumbnail image and the transcript (captions in the requested language when available, otherwise the original).",
+    inputSchema: z.object({
+      url: z.string().min(1),
+      transcript: z.boolean().optional().describe("Default true."),
+      lang: z.string().optional().describe("Preferred caption language code, e.g. \"ru\" or \"en\"."),
+    }),
+    annotations: { ...readOnly, openWorldHint: true },
+  }, async (input) => {
+    try {
+      return { content: youtubeToBlocks(await readYouTube(input.url, { transcript: input.transcript !== false, lang: input.lang })) };
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  server.registerTool("view_board", {
+    title: "Look at the board",
+    description:
+      "A real screenshot of the hive board as the user sees it — layout, colours, drawings, links, zones, pictures. Without arguments: the current view; with ids or bbox hive briefly moves the camera there, captures and moves it back. Needs the hive window open (not minimized).",
+    inputSchema: z.object({ ids: z.array(NodeId).optional(), bbox: Rect.optional(), maxPx: z.number().int().min(512).max(3000).optional().describe("Default 1600.") }),
+    annotations: readOnly,
+  }, async (input) => {
+    try {
+      const result = await bridge.call<Record<string, unknown>>("view.capture", clean(input));
+      return { content: contentToBlocks(result, "Board screenshot") };
+    } catch (error) {
+      return fail(error);
+    }
+  });
+
+  server.registerTool("get_board_overview", {
+    title: "Project overview",
+    description: "A cheap map of the whole project to plan a study: bounds, zones, clusters of connected/nearby nodes with labels, counts per node kind, media counts (images, PDFs, videos, YouTube…), open/done tasks, newest nodes and the longest texts.",
+    inputSchema: z.object({}),
+    annotations: readOnly,
+  }, async () => read("board.overview", {}, (project) => ({ ...offlineStatus(project), note: "Overview needs hive running; offline status shown instead." })));
+
+  server.registerPrompt("study_project", {
+    title: "Study the hive project",
+    description: "Read and understand the whole open hive project: structure, every note, pictures, files, PDFs and YouTube videos.",
+    argsSchema: z.object({ focus: z.string().optional().describe("Optional topic or question to focus on.") }),
+  }, ({ focus }) => ({
+    messages: [{
+      role: "user" as const,
+      content: {
+        type: "text" as const,
+        text: [
+          "Study my hive project thoroughly using the hive tools, then give me a structured summary.",
+          focus ? `Focus especially on: ${focus}.` : "",
+          "Steps:",
+          "1. get_status and get_board_overview to learn the size, zones, clusters and media.",
+          "2. view_board (whole view, then each zone or big cluster by ids) to see the layout and drawings.",
+          "3. list_nodes page by page; read the full content of every node that matters with read_node_content (10 ids per call; use maxImagePx 768 when there are many images).",
+          "4. Look at every image, read PDFs and text files, and use the YouTube details/transcripts that read_node_content returns (read_youtube for any remaining links).",
+          "5. list_links and list_zones to understand how ideas connect.",
+          "Then report: what the project is about, its main areas and how they relate, key facts from images/PDFs/videos, open tasks and priorities, and gaps or contradictions you noticed. Do not change anything in the project.",
+        ].filter(Boolean).join("\n"),
+      },
+    }],
+  }));
 }

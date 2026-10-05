@@ -1,7 +1,7 @@
 import net from "node:net";
 import { PROTOCOL_VERSION, readBridgeInfo, type BridgeInfo } from "./discovery.js";
 
-export const CLIENT_NAME = "hive-mcp/0.1.0";
+export const CLIENT_NAME = "hive-mcp/0.2.0";
 const CONNECT_TIMEOUT_MS = 3_000;
 const REQUEST_TIMEOUT_MS = 40_000;
 

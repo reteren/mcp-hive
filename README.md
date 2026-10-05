@@ -8,7 +8,7 @@ It lets an AI assistant (Claude Desktop, Claude Code, Codex, Cursor, …) read y
 
 ## Requirements
 
-- hive **1.7.0 or newer** with *Settings → AI tools → Allow AI tools (MCP)* enabled (on by default).
+- hive **1.7.1 or newer** with *Settings → AI tools → Allow AI tools (MCP)* enabled (on by default).
 - Node.js 20+.
 
 When hive is closed, the read tools still work on the last opened project folder (read-only); writing needs hive running.
@@ -55,6 +55,10 @@ args = ["C:/path/to/hive-mcp/dist/index.js"]
 | `get_status` | Running?, open project, counts, visible area, selection |
 | `describe_node_kinds` | Every node kind with its fields and allowed values |
 | `list_nodes`, `get_nodes`, `search_nodes` | Find and read nodes (full Markdown text, links, zone) |
+| `read_node_content` | What is inside nodes: images/GIFs and inline pictures as real images, text/code files, PDF text, audio/video details with a poster frame, module data, and YouTube links expanded (title, channel, description, thumbnail, transcript) |
+| `read_youtube` | Any YouTube link: metadata, thumbnail and transcript |
+| `view_board` | Screenshot of the board (current view or around given nodes) |
+| `get_board_overview` | Map of the whole project: zones, clusters, kinds, media, tasks |
 | `create_nodes` | Create any number of nodes of any kind + links in one step, auto-placed without overlaps (`row`, `column`, `grid`, `tree`) |
 | `update_nodes` | Rename, edit text precisely (find/replace, append, prepend), move, resize, colours, glow, task, importance, purposes, moods, kind data |
 | `delete_nodes`, `restore_from_trash`, `list_trash`, `list_archive` | Delete like the Delete key (to Trash) and bring back |
@@ -65,6 +69,10 @@ args = ["C:/path/to/hive-mcp/dist/index.js"]
 | `focus_view` | Move hive's camera to show nodes |
 | `undo_last_change` | Undo the last MCP change |
 | `save_project` | Flush pending saves |
+
+## Prompts
+
+- `study_project` — walks the assistant through the whole project (overview, screenshots, every node's content incl. images, PDFs and YouTube) and asks for a structured summary.
 
 ## How it works
 

@@ -9,10 +9,11 @@ const INSTRUCTIONS = `hive is a spatial board for notes (an Obsidian-like app): 
 - Coordinates are board units; x/y is a node's top-left; y grows downward. Omit x/y to let hive place nodes without overlaps.
 - Every write tool call is ONE undo step in hive (the user can press Ctrl+Z), labelled "MCP: …".
 - Find nodes with search_nodes or list_nodes; read full text with get_nodes; edit text precisely with update_nodes textEdit.
+- To understand what is INSIDE nodes (pictures, GIFs, PDFs, text/code files, media, YouTube videos incl. transcripts) use read_node_content; view_board shows the board as an image; get_board_overview maps the whole project. The study_project prompt walks through all of it.
 - After creating or changing something the user should look at, call focus_view.
 - Writes need hive running; while it is closed the read tools show the last project read-only.`;
 
-const server = new McpServer({ name: "hive", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+const server = new McpServer({ name: "hive", version: "0.2.0" }, { instructions: INSTRUCTIONS });
 const bridge = new HiveBridge();
 registerTools(server, bridge);
 
