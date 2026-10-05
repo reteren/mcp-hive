@@ -15,6 +15,11 @@ export interface BridgeInfo {
   project: { name: string; root: string } | null;
 }
 
+/** Tauri canonical paths may carry the Windows extended-length prefix `\\?\`. */
+export function stripExtendedPrefix(value: string): string {
+  return value.startsWith("\\\\?\\") ? value.slice(4) : value;
+}
+
 /** Same location as Tauri's app_config_dir() for this identifier. */
 export function hiveConfigDir(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string {
   if (env.HIVE_CONFIG_DIR) return env.HIVE_CONFIG_DIR;
@@ -44,7 +49,7 @@ export async function readBridgeInfo(configDir = hiveConfigDir()): Promise<Bridg
       pid: typeof value.pid === "number" ? value.pid : 0,
       appVersion: typeof value.appVersion === "string" ? value.appVersion : "unknown",
       project: value.project && typeof value.project.root === "string"
-        ? { name: String(value.project.name ?? path.basename(value.project.root)), root: value.project.root }
+        ? { name: String(value.project.name ?? path.basename(value.project.root)), root: stripExtendedPrefix(value.project.root) }
         : null,
     };
   } catch {
@@ -58,8 +63,7 @@ export async function readLastProjectRoot(configDir = hiveConfigDir()): Promise<
   try {
     const value = JSON.parse(await readFile(path.join(configDir, "last-project.json"), "utf8")) as unknown;
     if (typeof value !== "string" || !value) return null;
-    // Tauri canonical paths may carry the Windows extended-length prefix.
-    return value.startsWith("\\\\?\\") ? value.slice(4) : value;
+    return stripExtendedPrefix(value);
   } catch {
     return null;
   }
