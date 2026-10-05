@@ -1,15 +1,16 @@
 {
   "name": "hive-mcp",
   "version": "0.1.0",
-  "description": "MCP server for hive \u2014 lets AI assistants read and edit your hive boards through the running app.",
+  "description": "MCP server for hive — lets AI assistants read and edit your hive boards through the running app.",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "check": "tsc -p tsconfig.json --noEmit",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepare": "npm run build"
   },
-  "author": "",
+  "author": "reteren",
   "license": "MIT",
   "type": "module",
   "dependencies": {
@@ -38,5 +39,13 @@
     "notes",
     "obsidian",
     "model-context-protocol"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reteren/hive-mcp.git"
+  },
+  "homepage": "https://github.com/reteren/hive-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/reteren/hive-mcp/issues"
+  }
 }

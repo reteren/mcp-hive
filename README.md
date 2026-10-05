@@ -18,8 +18,7 @@ When hive is closed, the read tools still work on the last opened project folder
 ```bash
 git clone https://github.com/reteren/hive-mcp.git
 cd hive-mcp
-npm install
-npm run build
+npm install   # also builds dist/
 ```
 
 ### Claude Code
