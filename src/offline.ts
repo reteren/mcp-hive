@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -25,6 +25,7 @@ export async function loadOfflineProject(root: string): Promise<OfflineProject> 
   } catch (error) {
     throw new Error(`Cannot read ${indexPath}: ${(error as Error).message}`);
   }
+  if (!Array.isArray(index.notes)) index = await assembleSplitBoard(root, index);
   const notes = Array.isArray(index.notes) ? (index.notes as Json[]) : [];
   const texts = new Map<string, string>();
   await Promise.all(notes.map(async (note) => {
@@ -37,6 +38,48 @@ export async function loadOfflineProject(root: string): Promise<OfflineProject> 
     }
   }));
   return { root, name: path.basename(root), index, notes, texts };
+}
+
+/** hive 1.8.3+ keeps one file per object (nodes/<id>.json, …) next to a small board.json. */
+const SPLIT_COLLECTIONS: [string, string][] = [
+  ["notes", "nodes"], ["links", "links"], ["zones", "zones"], ["trash", "trash"], ["archive", "archive"], ["taskLog", "tasklog"],
+];
+
+async function assembleSplitBoard(root: string, head: Json): Promise<Json> {
+  const index: Json = { ...head };
+  for (const [key, directory] of SPLIT_COLLECTIONS) {
+    const items = await readObjects(path.join(root, directory));
+    items.sort((a, b) => order(a) - order(b) || String(a.id ?? "").localeCompare(String(b.id ?? "")));
+    index[key] = items.map(({ _order: _, ...item }) => item);
+  }
+  const calculators: Json = {};
+  for (const item of await readObjects(path.join(root, "calculators"))) {
+    if (typeof item.key === "string") calculators[item.key] = item.value;
+  }
+  index.calculators = calculators;
+  return index;
+}
+
+async function readObjects(directory: string): Promise<Json[]> {
+  let names: string[];
+  try {
+    names = (await readdir(directory)).filter((name) => name.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const items = await Promise.all(names.map(async (name) => {
+    try {
+      const value = JSON.parse(await readFile(path.join(directory, name), "utf8")) as unknown;
+      return value && typeof value === "object" && !Array.isArray(value) ? (value as Json) : null;
+    } catch {
+      return null; // unreadable (e.g. an unresolved Git conflict): skipped
+    }
+  }));
+  return items.filter((item): item is Json => item !== null);
+}
+
+function order(item: Json): number {
+  return typeof item._order === "number" ? item._order : Number.MAX_VALUE;
 }
 
 const PREVIEW = 160;

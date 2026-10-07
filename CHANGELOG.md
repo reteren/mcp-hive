@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-07
+
+- Read-only fallback (hive closed) reads projects saved by hive 1.8.3+, which keep one file per node, link and zone (`nodes/`, `links/`, `zones/`, …) instead of one board.json.
+
 ## 0.2.0 — 2026-10-05
 
 Needs hive 1.7.1+.
