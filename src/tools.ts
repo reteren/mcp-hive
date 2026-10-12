@@ -76,6 +76,7 @@ const CreateSpec = z.object({
   accentColor: HexColor.optional().describe("Inner/body colour."),
   glow: Glow.optional(),
   headerHidden: z.boolean().optional(),
+  textHidden: z.boolean().optional().describe("true removes the text box of a text node completely; its text is kept and returns with false. Needs hive 1.9.2+."),
   task: TaskInput.optional().describe("true = open task; {done:true} = completed task."),
   importance: z.string().optional().describe("One of enums.importance."),
   purposes: z.array(z.string()).optional().describe("Values from enums.purposes."),
@@ -103,6 +104,7 @@ const UpdateSpec = z.object({
   accentColor: HexColor.nullable().optional().describe("null clears."),
   glow: Glow.nullable().optional().describe("null removes the glow."),
   headerHidden: z.boolean().optional(),
+  textHidden: z.boolean().optional().describe("true removes the text box of a text node completely; its text is kept and returns with false. Needs hive 1.9.2+."),
   task: z.union([TaskInput, z.null()]).optional().describe("true/{done} sets the task state; null or false removes the task flag."),
   importance: z.string().nullable().optional().describe("null clears."),
   purposes: z.array(z.string()).optional().describe("Replaces the list."),
@@ -234,7 +236,7 @@ export function registerTools(server: McpServer, bridge: HiveBridge): void {
   server.registerTool("update_nodes", {
     title: "Update nodes",
     description:
-      "Change existing nodes in ONE undoable step: rename, replace or precisely edit the Markdown text (find/replace that must match exactly once, append, prepend), move/resize, colours, glow, header, task state, importance, purposes, moods, zone, kind-specific data. " +
+      "Change existing nodes in ONE undoable step: rename, replace or precisely edit the Markdown text (find/replace that must match exactly once, append, prepend), move/resize, colours, glow, header, text box (textHidden), task state, importance, purposes, moods, zone, kind-specific data. " +
       "Only the fields you pass change.",
     inputSchema: z.object({ updates: z.array(UpdateSpec).min(1).max(200) }),
     annotations: additive,

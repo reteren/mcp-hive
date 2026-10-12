@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2 — 2026-10-12
+
+- `create_nodes` / `update_nodes`: `textHidden` removes a text node's text box completely (the text is kept and comes back with `textHidden: false`), like "Remove text box" in hive. Needs hive 1.9.2+; older fields and tools are unchanged.
+
 ## 0.2.1 — 2026-10-07
 
 - Read-only fallback (hive closed) reads projects saved by hive 1.8.3+, which keep one file per node, link and zone (`nodes/`, `links/`, `zones/`, …) instead of one board.json.
